@@ -1,0 +1,117 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# ==================================================
+# [설정] 파일 경로를 여기에 입력하세요
+# ==================================================
+# 1. Baseline 데이터 (Raw NPY 파일)
+# 예: "data/test_keypoints/AAA_2023_intro_NewJeans_raw.npy"
+# (반드시 본인 폴더에 있는 실제 파일명으로 수정하세요!)
+RAW_FILE_PATH = "data/test_keypoints/AAAraw.npy" 
+
+# 2. Student 데이터 (최종 생성된 CSV 파일)
+# 예: "data/output/final_AAA_2023_intro_NewJeans_smooth.csv"
+# (반드시 본인 폴더에 있는 실제 파일명으로 수정하세요!)
+REFINED_FILE_PATH = "data/output/finalAAAsmoth.csv" 
+
+# 3. 비교하고 싶은 구간 (프레임)
+START_FRAME = 100
+END_FRAME = 200
+# ==================================================
+
+def draw_comparison_graphs():
+    # 1. 데이터 로드
+    try:
+        raw_data = np.load(RAW_FILE_PATH)  # (T, 33, 3)
+        refined_df = pd.read_csv(REFINED_FILE_PATH)
+    except Exception as e:
+        print(f"❌ 파일을 찾을 수 없습니다: {e}")
+        print("💡 파일 경로(RAW_FILE_PATH, REFINED_FILE_PATH)가 정확한지 확인해주세요.")
+        return
+
+    # CSV 데이터를 (T, 33, 3) 형태로 변환
+    num_frames = refined_df['frame'].max() + 1
+    refined_data = np.zeros((num_frames, 33, 3))
+    
+    for _, row in refined_df.iterrows():
+        t, v = int(row['frame']), int(row['landmark'])
+        # Unity 좌표계 고려 (필요시 부호 반전 등 조정, 여기선 단순 비교라 그대로 사용)
+        refined_data[t, v, 0] = row['x']
+        refined_data[t, v, 1] = row['y']
+        refined_data[t, v, 2] = row['z']
+
+    # 데이터 길이 맞추기 (짧은 쪽 기준)
+    min_len = min(len(raw_data), len(refined_data))
+    raw_data = raw_data[:min_len]
+    refined_data = refined_data[:min_len]
+
+    # 비교 구간 설정
+    t_axis = np.arange(START_FRAME, END_FRAME)
+    
+    # -------------------------------------------------------
+    # Graph 1: Hand Trajectory (Jitter Removal) - 손목 떨림 비교
+    # -------------------------------------------------------
+    joint_idx = 15  # Left Wrist (손목은 움직임이 많아 떨림이 잘 보임)
+    raw_y = raw_data[START_FRAME:END_FRAME, joint_idx, 1]
+    ref_y = refined_data[START_FRAME:END_FRAME, joint_idx, 1]
+
+    plt.figure(figsize=(12, 4))
+    plt.title("Comparison of Joint Stability (Left Wrist Y-axis)", fontsize=14, fontweight='bold')
+    plt.plot(t_axis, raw_y, label='Baseline (Raw)', color='red', alpha=0.5, linestyle='--')
+    plt.plot(t_axis, ref_y, label='Student (Ours)', color='blue', linewidth=2)
+    plt.xlabel("Frame")
+    plt.ylabel("Position Y")
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.show() 
+    # (PPT 캡처용: Baseline의 뾰족뾰족한 선 vs Student의 부드러운 선 비교)
+
+    # -------------------------------------------------------
+    # Graph 2: Foot Contact (Floor Alignment) - 발바닥 접지 비교
+    # -------------------------------------------------------
+    joint_idx = 29  # Left Heel (발뒤꿈치)
+    raw_y_foot = raw_data[START_FRAME:END_FRAME, joint_idx, 1]
+    ref_y_foot = refined_data[START_FRAME:END_FRAME, joint_idx, 1]
+
+    plt.figure(figsize=(12, 4))
+    plt.title("Foot Contact Stability (Left Heel Y-axis)", fontsize=14, fontweight='bold')
+    plt.plot(t_axis, raw_y_foot, label='Baseline (Raw)', color='red', alpha=0.5, linestyle='--')
+    plt.plot(t_axis, ref_y_foot, label='Student (Ours)', color='green', linewidth=2)
+    
+    # 바닥 기준선 (Y=0 근처, 데이터마다 오차가 있을 수 있어 시각적으로 강조)
+    plt.axhline(y=0, color='black', linestyle='-', linewidth=1.5, alpha=0.7, label='Ground Level') 
+    
+    plt.xlabel("Frame")
+    plt.ylabel("Height (Y)")
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.show() 
+    # (PPT 캡처용: Baseline은 바닥을 뚫거나 뜨는데, Student는 바닥선에 붙는 모습)
+
+    # -------------------------------------------------------
+    # Graph 3: Velocity Smoothness (Denoising Effect) - 속도 변화량 비교
+    # -------------------------------------------------------
+    # 속도(Velocity) = 현재 위치 - 이전 위치
+    # 코(Nose)나 골반(Hip)의 속도가 부드러워야 자연스러운 움직임임
+    joint_idx_hip = 0 # Nose (또는 23: Hip)
+    
+    raw_vel = np.diff(raw_data[START_FRAME:END_FRAME, joint_idx_hip, 1]) 
+    ref_vel = np.diff(refined_data[START_FRAME:END_FRAME, joint_idx_hip, 1])
+
+    plt.figure(figsize=(12, 4))
+    plt.title("Motion Smoothness (Velocity Change of Nose)", fontsize=14, fontweight='bold')
+    plt.plot(t_axis[:-1], raw_vel, label='Baseline (Raw)', color='red', alpha=0.5)
+    plt.plot(t_axis[:-1], ref_vel, label='Student (Ours)', color='purple', linewidth=2)
+    plt.xlabel("Frame")
+    plt.ylabel("Velocity (Delta Y)")
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.show() 
+    # (PPT 캡처용: 빨간선의 진폭이 큼(노이즈) vs 보라선은 안정적임)
+
+if __name__ == "__main__":
+    draw_comparison_graphs()
