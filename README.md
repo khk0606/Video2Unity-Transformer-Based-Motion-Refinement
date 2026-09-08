@@ -189,6 +189,28 @@ python src/train.py
 
 Preprocessing generates `data/processed/combined_raw.npy`, `combined_target.npy`, and `experiments/scaler.pkl`. Training writes checkpoints to `experiments/transformer_model/`. Keep each model paired with the scaler used for its training.
 
+## Comparison & Results
+
+The following plots are cropped directly from the course report's **Comparison & Result** slides (pages 14–15). Titles, axes, and legends are preserved; the curves have not been redrawn or recomputed.
+
+### Joint stability — left wrist
+
+![Left-wrist Y-coordinate comparison between the raw baseline and student output](assets/results/joint-stability.png)
+
+*Source: course report, p. 14.* The plot compares the raw baseline with the student output over the displayed frame interval. The curves have different vertical offsets, so it should not be interpreted as an absolute pose-error measurement.
+
+### Motion smoothness — nose velocity
+
+![Nose Y-velocity comparison showing raw baseline fluctuations and the smoother student curve](assets/results/motion-smoothness.png)
+
+*Source: course report, p. 14.* The student curve shows fewer abrupt velocity fluctuations in this example. This is a qualitative sequence illustration, not an aggregate jitter-reduction score or an ablation isolating the Transformer from post-processing.
+
+### Foot contact stability — left heel
+
+![Left-heel height comparison between the raw baseline and student output with the zero-height reference](assets/results/foot-contact-stability.png)
+
+*Source: course report, p. 15.* The figure illustrates the change in heel height relative to the zero-height reference. Height alignment alone does not establish physically correct contact or elimination of horizontal foot sliding.
+
 ## Course demonstration and observations
 
 The course report presents a K-pop dance animation in Unity with an intro, performance, and outro. It describes motion interpolation, camera tracking, and scripted lighting alongside the refined character motion.
